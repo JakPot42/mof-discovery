@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}{{ mof.name }}{% endblock %}
+{% block content %}
+
+<div style="margin-bottom:16px;font-size:0.85rem;">
+  <a href="/">&larr; Back to query</a>
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:6px;">
+    <h1 style="font-size:1.4rem;font-weight:700;color:var(--accent2);">{{ mof.name }}</h1>
+    {% if mof.common_name %}
+    <span style="font-size:0.9rem;color:var(--muted);">{{ mof.common_name }}</span>
+    {% endif %}
+    {% if mof.water_stability == 'high' %}
+    <span class="badge badge-pub">water stable</span>
+    {% elif mof.water_stability == 'moderate' %}
+    <span class="badge badge-proxy40">moisture sensitive</span>
+    {% elif mof.water_stability == 'low' %}
+    <span class="badge" style="background:#2a1a1a;color:#f87171;border:1px solid #5a2a2a;">moisture unstable</span>
+    {% endif %}
+    {% if mof.has_open_metal_sites %}
+    <span class="badge" style="background:#1a2a3a;color:#7dd3fc;border:1px solid #1a4a6a;">open metal sites</span>
+    {% endif %}
+  </div>
+  {% if mof.formula %}
+  <div style="font-size:0.85rem;color:var(--muted);margin-bottom:14px;font-family:monospace;">{{ mof.formula }}</div>
+  {% endif %}
+  {% if mof.notes %}
+  <p style="font-size:0.88rem;color:var(--text);margin-bottom:4px;">{{ mof.notes }}</p>
+  {% endif %}
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+  <!-- Structural properties -->
+  <div class="card">
+    <h3 style="font-size:0.85rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:14px;">Structural Properties</h3>
+    <div class="prop-grid" style="grid-template-columns:1fr 1fr;">
+      <div class="prop-item">
+        <div class="prop-label">Metal node</div>
+        <div class="prop-value">{{ mof.metal_node or '—' }}</div>
+      </div>
+      <div class="prop-item">
+        <div class="prop-label">Topology</div>
+        <div class="prop-value {% if not mof.topology %}na{% endif %}">{{ mof.topology or 'unknown' }}</div>
+      </div>
+      <div class="prop-item">
+        <div class="prop-label">BET SA (m²/g)</div>
+        <div class="prop-value {% if not mof.surface_area_m2_g %}na{% endif %}">{{ (mof.surface_area_m2_g|int)|string if mof.surface_area_m2_g else '—' }}</div>
+      </div>
+      <div class="prop-item">
+        <div class="prop-label">Void fraction</div>
+        <div class="prop-value {% if not mof.void_fraction %}na{% endif %}">{{ "%.2f"|format(mof.void_fraction) if mof.void_fraction else '—' }}</div>
+      </div>
+      <div class="prop-item">
+        <div class="prop-label">PLD (Å)</div>
+        <div class="prop-value {% if not mof.pore_limiting_diameter_A %}na{% endif %}">{{ "%.1f"|format(mof.pore_limiting_diameter_A) if mof.pore_limiting_diameter_A else '—' }}</div>
+      </div>
+      <div class="prop-item">
+        <div class="prop-label">LCD (Å)</div>
+        <div class="prop-value {% if not mof.largest_cavity_diameter_A %}na{% endif %}">{{ "%.1f"|format(mof.largest_cavity_diameter_A) if mof.largest_cavity_diameter_A else '—' }}</div>
+      </div>
+      <div class="prop-item">
+        <div class="prop-label">Density (g/cm³)</div>
+        <div class="prop-value {% if not mof.density_g_cm3 %}na{% endif %}">{{ "%.2f"|format(mof.density_g_cm3) if mof.density_g_cm3 else '—' }}</div>
+      </div>
+      <div class="prop-item">
+        <div class="prop-label">Functional groups</div>
+        <div class="prop-value {% if not mof.functional_groups %}na{% endif %}">{{ mof.functional_groups or 'none' }}</div>
+      </div>
+    </div>
+    {% if mof.linker %}
+    <div style="margin-top:12px;font-size:0.82rem;color:var(--muted);">Linker: {{ mof.linker }}</div>
+    {% endif %}
+  </div>
+
+  <!-- Published adsorption data -->
+  <div class="card">
+    <h3 style="font-size:0.85rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:14px;">Published Adsorption Data</h3>
+
+    <table style="font-size:0.85rem;">
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th>Value</th>
+          <th>Conditions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Water uptake</td>
+          <td>{% if mof.water_uptake_g_g_20rh %}<strong style="color:var(--green);">{{ "%.2f"|format(mof.water_uptake_g_g_20rh) }} g/g</strong>{% else %}<span style="color:var(--muted);">—</span>{% endif %}</td>
+          <td style="color:var(--muted);">20% RH, ~25°C</td>
+        </tr>
+        <tr>
+          <td>Water uptake</td>
+          <td>{% if mof.water_uptake_g_g_40rh %}<strong>{{ "%.2f"|format(mof.water_uptake_g_g_40rh) }} g/g</strong>{% else %}<span style="color:var(--muted);">—</span>{% endif %}</td>
+          <td style="color:var(--muted);">40% RH, ~25°C</td>
+        </tr>
+        <tr>
+          <td>CO₂ uptake</td>
+          <td>{% if mof.co2_uptake_mmol_g_015bar %}<strong style="color:var(--green);">{{ "%.1f"|format(mof.co2_uptake_mmol_g_015bar) }} mmol/g</strong>{% else %}<span style="color:var(--muted);">—</span>{% endif %}</td>
+          <td style="color:var(--muted);">0.15 bar, 298 K</td>
+        </tr>
+        <tr>
+          <td>CO₂ uptake</td>
+          <td>{% if mof.co2_uptake_mmol_g_1bar %}<strong>{{ "%.1f"|format(mof.co2_uptake_mmol_g_1bar) }} mmol/g</strong>{% else %}<span style="color:var(--muted);">—</span>{% endif %}</td>
+          <td style="color:var(--muted);">1 bar, 298 K</td>
+        </tr>
+        <tr>
+          <td>CO₂/N₂ selectivity</td>
+          <td>{% if mof.co2_n2_selectivity %}<strong>{{ mof.co2_n2_selectivity|int }}</strong>{% else %}<span style="color:var(--muted);">—</span>{% endif %}</td>
+          <td style="color:var(--muted);">IAST</td>
+        </tr>
+        <tr>
+          <td>H₂ uptake</td>
+          <td>{% if mof.h2_uptake_wt_1bar_77k %}<strong style="color:var(--green);">{{ "%.2f"|format(mof.h2_uptake_wt_1bar_77k) }} wt%</strong>{% else %}<span style="color:var(--muted);">—</span>{% endif %}</td>
+          <td style="color:var(--muted);">1 bar, 77 K</td>
+        </tr>
+        <tr>
+          <td>H₂ uptake (high P)</td>
+          <td>{% if mof.h2_uptake_wt_100bar_77k %}<strong>{{ "%.2f"|format(mof.h2_uptake_wt_100bar_77k) }} wt%</strong>{% else %}<span style="color:var(--muted);">—</span>{% endif %}</td>
+          <td style="color:var(--muted);">56–100 bar, 77 K</td>
+        </tr>
+        <tr>
+          <td>CH₄ uptake</td>
+          <td>{% if mof.ch4_uptake_cm3_cm3_35bar %}<strong style="color:var(--green);">{{ mof.ch4_uptake_cm3_cm3_35bar|int }} cm³/cm³</strong>{% else %}<span style="color:var(--muted);">—</span>{% endif %}</td>
+          <td style="color:var(--muted);">35 bar, 298 K</td>
+        </tr>
+      </tbody>
+    </table>
+
+    {% if mof.key_paper %}
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);font-size:0.8rem;color:var(--muted);">
+      <strong style="color:var(--text);">Key reference:</strong> {{ mof.key_paper }}
+    </div>
+    {% endif %}
+    {% if mof.core_mof_id %}
+    <div style="font-size:0.78rem;color:var(--muted);margin-top:4px;">CoRE MOF ID: {{ mof.core_mof_id }}</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Rank for each use case -->
+<div class="card">
+  <h3 style="font-size:0.85rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Query This Structure</h3>
+  <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px;">See how {{ mof.name }} ranks for each application.</p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <a class="btn" style="font-size:0.82rem;padding:8px 14px;" href="/?use_case=water_harvesting&top_k=10">Water Harvesting</a>
+    <a class="btn" style="font-size:0.82rem;padding:8px 14px;background:#2d4060;" href="/?use_case=co2_capture&top_k=10">CO₂ Capture</a>
+    <a class="btn" style="font-size:0.82rem;padding:8px 14px;background:#2d4060;" href="/?use_case=h2_storage&top_k=10">H₂ Storage</a>
+    <a class="btn" style="font-size:0.82rem;padding:8px 14px;background:#2d4060;" href="/?use_case=ch4_storage&top_k=10">CH₄ Storage</a>
+    <a class="btn" style="font-size:0.82rem;padding:8px 14px;background:#2d4060;" href="/?use_case=voc_removal&top_k=10">VOC Removal</a>
+  </div>
+</div>
+
+{% endblock %}

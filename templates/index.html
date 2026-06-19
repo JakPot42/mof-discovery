@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}MOF Query{% endblock %}
+{% block content %}
+
+{% if demo_mode %}
+<div class="demo-banner">DEMO MODE — explanations are pre-written. Set DEMO_MODE=False and provide ANTHROPIC_API_KEY to enable live Claude analysis.</div>
+{% endif %}
+
+<div class="card">
+  <h2 style="font-size:1.1rem;font-weight:700;color:var(--accent2);margin-bottom:4px;">Query the CoRE MOF Database</h2>
+  <p style="font-size:0.85rem;color:var(--muted);margin-bottom:18px;">
+    Select a target application. The deterministic ranking engine scores all {{ total_mofs }} structures
+    by published adsorption data where available, structural proxies where not.
+    Claude explains why the top candidates work.
+  </p>
+
+  <form method="get" action="/">
+    <div class="form-row">
+      <div>
+        <label for="use_case">Target application</label>
+        <select name="use_case" id="use_case" required>
+          <option value="" disabled {% if not selected_use_case %}selected{% endif %}>— select —</option>
+          {% for uc_val, uc_label in use_cases.items() %}
+          <option value="{{ uc_val }}" {% if selected_use_case == uc_val %}selected{% endif %}>{{ uc_label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="context">Condition / context (optional)</label>
+        <input type="text" name="context" id="context" value="{{ context }}"
+               placeholder="e.g., desert air 20% RH, post-combustion flue gas 15% CO2, room temperature" />
+      </div>
+      <div>
+        <label for="top_k">Results</label>
+        <input type="number" name="top_k" id="top_k" value="{{ top_k }}" min="3" max="50" />
+      </div>
+      <div>
+        <button type="submit" class="btn">Rank</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+{% if error %}
+<div style="background:#2a1a1a;border:1px solid #5a2a2a;border-radius:8px;padding:14px;color:#f87171;margin-bottom:20px;">
+  Error: {{ error }}
+</div>
+{% endif %}
+
+{% if not results and not selected_use_case %}
+<!-- Explore cards -->
+<h3 style="font-size:0.9rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Explore use cases</h3>
+<div class="use-case-cards">
+  {% for uc_val, uc_label in use_cases.items() %}
+  <a class="uc-card" href="/?use_case={{ uc_val }}&top_k=10">
+    <div class="uc-label">{{ uc_label }}</div>
+    <div class="uc-desc">{{ use_case_descriptions[uc_val][:120] }}...</div>
+  </a>
+  {% endfor %}
+</div>
+<div style="font-size:0.82rem;color:var(--muted);margin-top:8px;">
+  Database: {{ total_mofs }} characterized MOF structures with published geometric and adsorption properties.
+</div>
+{% endif %}
+
+{% if results %}
+<!-- Results section -->
+<div class="card" style="margin-top:0;">
+  <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+    <h2 style="font-size:1rem;font-weight:700;color:var(--accent2);">
+      Top {{ results|length }} — {{ use_cases[selected_use_case] }}
+    </h2>
+    <span style="font-size:0.8rem;color:var(--muted);">Key metric: {{ key_metrics[selected_use_case] }}</span>
+    {% if context %}
+    <span style="font-size:0.8rem;color:var(--muted);">| context: {{ context }}</span>
+    {% endif %}
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:36px;">#</th>
+        <th>MOF</th>
+        <th>Metal</th>
+        <th>SA (m²/g)</th>
+        <th>PLD (Å)</th>
+        <th>Void</th>
+        <th>Score</th>
+        <th>Data</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for m in results %}
+    <tr class="{% if loop.index == 1 %}rank-1{% endif %}">
+      <td><span class="rank-num">{{ loop.index }}</span></td>
+      <td>
+        <strong>{{ m.name }}</strong>
+        {% if m.common_name %}<br><span style="font-size:0.78rem;color:var(--muted);">{{ m.common_name }}</span>{% endif %}
+        {% if m.water_uptake_g_g_20rh and selected_use_case == 'water_harvesting' %}
+        <br><span style="font-size:0.78rem;color:var(--green);">{{ "%.2f"|format(m.water_uptake_g_g_20rh) }} g/g @ 20% RH</span>
+        {% elif m.co2_uptake_mmol_g_015bar and selected_use_case == 'co2_capture' %}
+        <br><span style="font-size:0.78rem;color:var(--green);">{{ "%.1f"|format(m.co2_uptake_mmol_g_015bar) }} mmol/g @ 0.15 bar</span>
+        {% elif m.h2_uptake_wt_1bar_77k and selected_use_case == 'h2_storage' %}
+        <br><span style="font-size:0.78rem;color:var(--green);">{{ "%.2f"|format(m.h2_uptake_wt_1bar_77k) }} wt% @ 1 bar/77K</span>
+        {% elif m.ch4_uptake_cm3_cm3_35bar and selected_use_case == 'ch4_storage' %}
+        <br><span style="font-size:0.78rem;color:var(--green);">{{ m.ch4_uptake_cm3_cm3_35bar|int }} cm³/cm³ @ 35 bar</span>
+        {% endif %}
+      </td>
+      <td>{{ m.metal_node or '—' }}</td>
+      <td>{{ m.surface_area_m2_g|int if m.surface_area_m2_g else '—' }}</td>
+      <td>{{ "%.1f"|format(m.pore_limiting_diameter_A) if m.pore_limiting_diameter_A else '—' }}</td>
+      <td>{{ "%.2f"|format(m.void_fraction) if m.void_fraction else '—' }}</td>
+      <td>
+        <div class="score-bar-wrap">
+          <div class="score-bar">
+            <div class="score-bar-fill" style="width:{{ m.score }}%;background:{% if m.score >= 70 %}var(--green){% elif m.score >= 45 %}var(--yellow){% else %}var(--red){% endif %};"></div>
+          </div>
+          <span class="score-num" style="color:{% if m.score >= 70 %}var(--green){% elif m.score >= 45 %}var(--yellow){% else %}var(--red){% endif %};">{{ m.score }}</span>
+        </div>
+      </td>
+      <td>
+        {% if m.data_source == 'published' %}
+        <span class="badge badge-pub">published</span>
+        {% elif m.data_source == 'published_40rh' or m.data_source == 'published_1bar' or m.data_source == 'published_gravimetric' %}
+        <span class="badge badge-proxy40">pub (adj)</span>
+        {% else %}
+        <span class="badge badge-proxy">proxy</span>
+        {% endif %}
+      </td>
+      <td><a href="/mof/{{ m.name | urlencode }}" style="font-size:0.8rem;">details</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <div style="margin-top:10px;font-size:0.78rem;color:var(--muted);">
+    <strong>published</strong> = direct experimental value at target conditions.
+    <strong>pub (adj)</strong> = published at different conditions, adjusted.
+    <strong>proxy</strong> = estimated from structural properties (surface area, pore size, functional groups).
+  </div>
+</div>
+
+{% if explanation %}
+<div class="card">
+  <h3 style="font-size:0.9rem;font-weight:700;color:var(--accent2);margin-bottom:14px;">
+    Why these structures work — Claude analysis
+    {% if demo_mode %}<span class="badge badge-proxy" style="margin-left:6px;">DEMO</span>{% endif %}
+  </h3>
+  <div class="explanation-box">
+    {% for para in explanation.split('\n\n') %}
+    <p>{{ para }}</p>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div style="font-size:0.8rem;color:var(--muted);margin-top:4px;">
+  Scored from {{ total_mofs }} MOFs. Ranking is deterministic — same query always returns same result.
+  Published values from cited peer-reviewed literature; proxy scores are estimates.
+  <a href="/">New query</a>
+</div>
+{% endif %}
+{% endblock %}
